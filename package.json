@@ -1,0 +1,30 @@
+{
+  "name": "pulsedash",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Live, customizable pit display for FTC teams, powered by FTCScout and the FTC Events API.",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "build:gh": "NEXT_PUBLIC_BASE_PATH=/pulsedash next build",
+    "start": "npx --yes serve out",
+    "lint": "next lint",
+    "typecheck": "tsc --noEmit",
+    "test": "tsx --test lib/*.test.ts proxy/*.test.mjs",
+    "proxy": "node proxy/server.mjs"
+  },
+  "dependencies": {
+    "next": "14.2.35",
+    "react": "^18",
+    "react-dom": "^18"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "@types/react": "^18",
+    "@types/react-dom": "^18",
+    "eslint": "^8",
+    "eslint-config-next": "14.2.35",
+    "tsx": "^4.23.15",
+    "typescript": "^5"
+  }
+}
