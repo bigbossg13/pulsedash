@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { useEffect, useId, useRef, useState, type KeyboardEvent } from 'react'
 import {
   BRAND_ORANGE, LAYOUT_PRESETS, MAX_LOGO_BYTES, WIDGET_IDS, defaultPrefs, encodePrefs, isSafeLogo, isSafeProxy,
-  sanitizeColumns, sanitizePrefs, type PitPrefs, type WidgetId,
+  parseHex, sanitizeColumns, sanitizePrefs, type PitPrefs, type WidgetId,
 } from '@/lib/settings'
 import { DEFAULT_PROXY } from '@/lib/ftcevents'
 import type { SourceStatus } from '@/lib/types'
@@ -301,15 +301,16 @@ function LookTab({ prefs, set }: TabProps) {
         hint="Reduced motion turns off smooth scrolling; long lists flip pages every 12 seconds instead." />
       <fieldset>
         <legend>Team color</legend>
-        <p className="hint">Highlights your team everywhere on the display. Text on it switches between black and white automatically so it stays readable.</p>
+        <p className="hint">Highlights your team everywhere on the display. Pick a preset, use the color picker, or type any hex code. Text on it switches between black and white automatically so it stays readable.</p>
         <div className="swatches">
           {TEAM_COLORS.map(c => (
             <button key={c} type="button" className="swatch" style={{ background: c }} aria-pressed={accent === c}
               aria-label={c === BRAND_ORANGE ? 'PulseDash orange' : `Color ${c}`} onClick={() => set('accent', c === BRAND_ORANGE ? '' : c)} />
           ))}
-          <label htmlFor={colorId} className="sr-only">Custom team color</label>
+          <label htmlFor={colorId} className="sr-only">Pick a team color</label>
           <input id={colorId} type="color" value={accent} onChange={e => set('accent', e.target.value)} />
         </div>
+        <HexField value={accent} onCommit={hex => set('accent', hex === BRAND_ORANGE ? '' : hex)} />
       </fieldset>
       <Radio legend="Clock" name="clock" value={prefs.clock} onChange={v => set('clock', v)}
         options={[{ value: 'auto', label: 'Match device' }, { value: '12h', label: '12-hour' }, { value: '24h', label: '24-hour' }]} />
@@ -609,5 +610,37 @@ function NexusFields({ prefs, set }: { prefs: PitPrefs; set: TabProps['set'] }) 
         </div>
       </div>
     </fieldset>
+  )
+}
+
+function HexField({ value, onCommit }: { value: string; onCommit: (hex: string) => void }) {
+  const id = useId()
+  const [draft, setDraft] = useState(value)
+  const [error, setError] = useState('')
+  useEffect(() => { setDraft(value); setError('') }, [value])
+  const commit = () => {
+    const hex = parseHex(draft)
+    if (hex) {
+      setError('')
+      onCommit(hex)
+    } else {
+      setError('Use a hex code like #1E88E5 or #18E.')
+    }
+  }
+  const preview = parseHex(draft)
+  return (
+    <div className="field" style={{ maxWidth: '20rem' }}>
+      <label htmlFor={id}>Hex code</label>
+      <div className="row" style={{ flexWrap: 'nowrap', alignItems: 'center' }}>
+        <span className="swatch" aria-hidden style={{ background: preview ?? 'transparent', flexShrink: 0 }} />
+        <input id={id} type="text" inputMode="text" autoComplete="off" spellCheck={false} maxLength={7} value={draft}
+          onChange={e => setDraft(e.target.value)} onBlur={commit}
+          onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); commit() } }}
+          aria-invalid={!!error} aria-describedby={`${id}-h`} style={{ fontFamily: 'var(--mono)' }} />
+      </div>
+      <p className={error ? 'notice error' : 'hint'} id={`${id}-h`} role={error ? 'alert' : undefined}>
+        {error || 'Type your team\u2019s exact color, e.g. #1E88E5. Press Enter to apply.'}
+      </p>
+    </div>
   )
 }

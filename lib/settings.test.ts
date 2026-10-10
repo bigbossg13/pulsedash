@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { DEFAULT_PREFS, contrastRatio, decodePrefs, defaultPrefs, encodePrefs, readableInk, sanitizePrefs } from './settings'
+import { DEFAULT_PREFS, parseHex, contrastRatio, decodePrefs, defaultPrefs, encodePrefs, readableInk, sanitizePrefs } from './settings'
 import { formatDuration, currentSeason } from './time'
 
 test('sanitizePrefs rejects unsafe or malformed values', () => {
@@ -80,4 +80,12 @@ test('the Nexus API key never leaves the device in a share link', () => {
   assert.equal(back.nexusKey, '')
   assert.equal(back.nexusEvent, '2026usxxq1')
   assert.equal(sanitizePrefs({ nexusKey: 'bad key<script>' }, 7).nexusKey, '')
+})
+
+test('hex codes from the color field', () => {
+  assert.equal(parseHex('#1E88E5'), '#1e88e5')
+  assert.equal(parseHex('1e88e5'), '#1e88e5')
+  assert.equal(parseHex(' #18E '), '#1188ee')
+  assert.equal(parseHex('#12345'), null)
+  assert.equal(parseHex('red'), null)
 })

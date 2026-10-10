@@ -262,6 +262,14 @@ export function decodePrefs(encoded: string, team: number | null): PitPrefs | nu
 
 // ── Colors ───────────────────────────────────────────────────────────────────
 
+/** "#1e88e5", "1E88E5", "#18e" → "#1e88e5"; anything else → null. */
+export function parseHex(input: string): string | null {
+  const m = /^#?([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(input.trim())
+  if (!m) return null
+  const h = m[1].length === 3 ? [...m[1]].map(c => c + c).join('') : m[1]
+  return `#${h.toLowerCase()}`
+}
+
 export const BRAND_ORANGE = '#ff9b25'
 
 function luminance(hex: string): number {
