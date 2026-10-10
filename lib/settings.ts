@@ -25,6 +25,10 @@ export interface PitPrefs {
   motion: MotionPref
   /** Team color as #rrggbb; empty for PulseDash orange. */
   accent: string
+  /** Optional second team color for buttons and links (#rrggbb or empty). */
+  accent2: string
+  /** Theme the whole display (header, buttons, background tint) with the team colors. */
+  teamTheme: boolean
   clock: Clock
   /** Overrides the team name in the header. */
   displayName: string
@@ -99,6 +103,8 @@ export const DEFAULT_PREFS: PitPrefs = {
   font: 'brand',
   motion: 'auto',
   accent: '',
+  accent2: '',
+  teamTheme: true,
   clock: 'auto',
   displayName: '',
   logo: '',
@@ -182,6 +188,8 @@ export function sanitizePrefs(input: unknown, team: number | null = null): PitPr
     font: oneOf(p.font, ['brand', 'readable'], d.font),
     motion: oneOf(p.motion, ['auto', 'reduce'], d.motion),
     accent,
+    accent2: typeof p.accent2 === 'string' && /^#[0-9a-f]{6}$/i.test(p.accent2) ? p.accent2.toLowerCase() : '',
+    teamTheme: bool(p.teamTheme, d.teamTheme),
     clock: oneOf(p.clock, ['auto', '12h', '24h'], d.clock),
     displayName: text(p.displayName, 60),
     logo,

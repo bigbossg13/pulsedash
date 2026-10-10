@@ -6,6 +6,7 @@ import { usePitData } from '@/lib/usePitData'
 import { applyNexus, nexusDelay, nexusOnField, type NexusEvent } from '@/lib/nexus'
 import { DEMO_CODE, DEMO_TEAM } from '@/lib/demo'
 import { estimateTiming, nextOnField, oprRanks, ordinal, queueStatus, resultFor, teamMatches } from '@/lib/derive'
+import { TEAM_THEME_VARS, teamThemeVars } from '@/lib/teamTheme'
 import { BRAND_ORANGE, decodePrefs, loadPrefs, readableInk, savePrefs, type PitPrefs } from '@/lib/settings'
 import { currentSeason, formatClock, formatDuration, seasonLabel } from '@/lib/time'
 import type { EventSnapshot, SourceStatus } from '@/lib/types'
@@ -96,6 +97,22 @@ function Display({ season, code, team, demo }: { season: number; code: string; t
     root.style.setProperty('--team', accent)
     root.style.setProperty('--team-ink', readableInk(accent))
   }, [prefs.theme, prefs.textSize, prefs.font, prefs.motion, prefs.accent])
+
+  // Team colors theme the whole display. Not in high contrast, which keeps its
+  // own black/white/yellow palette; dark or light follows the theme setting.
+  const systemDark = useMedia('(prefers-color-scheme: dark)')
+  useEffect(() => {
+    const root = document.documentElement
+    for (const v of TEAM_THEME_VARS) root.style.removeProperty(v)
+    let vars: Record<string, string> = {}
+    if (prefs.teamTheme && prefs.theme !== 'contrast' && (prefs.accent || prefs.accent2)) {
+      const dark = prefs.theme === 'dark' || (prefs.theme === 'auto' && systemDark)
+      vars = teamThemeVars(prefs.accent || BRAND_ORANGE, prefs.accent2 || null, dark)
+      for (const [k, v] of Object.entries(vars)) root.style.setProperty(k, v)
+    }
+    // Remembered so the next page load paints in team colors straight away.
+    try { localStorage.setItem(`pulsedash:theme:${team ?? 'event'}`, JSON.stringify(vars)) } catch { /* ignore */ }
+  }, [prefs.teamTheme, prefs.theme, prefs.accent, prefs.accent2, systemDark, team])
 
   const { snapshot, nexusStatus, refreshNow, restoredAt, hasData } = usePitData({
     season, code, refresh: prefs.refresh, proxy: prefs.proxy, nexusKey: prefs.nexusKey, nexusEvent: prefs.nexusEvent, demo,

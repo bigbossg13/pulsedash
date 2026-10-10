@@ -283,6 +283,7 @@ function AddWidget({ hidden, onAdd, label }: { hidden: WidgetId[]; onAdd: (id: W
 
 function LookTab({ prefs, set }: TabProps) {
   const colorId = useId()
+  const color2Id = useId()
   const accent = prefs.accent || BRAND_ORANGE
   return (
     <>
@@ -312,6 +313,18 @@ function LookTab({ prefs, set }: TabProps) {
         </div>
         <HexField value={accent} onCommit={hex => set('accent', hex === BRAND_ORANGE ? '' : hex)} />
       </fieldset>
+      <fieldset>
+        <legend>Second team color (optional)</legend>
+        <p className="hint">Used for buttons and links. Leave it off to use your team color for everything.</p>
+        <div className="row" style={{ alignItems: 'flex-end' }}>
+          <label htmlFor={color2Id} className="sr-only">Pick a second team color</label>
+          <input id={color2Id} type="color" value={prefs.accent2 || accent} onChange={e => set('accent2', e.target.value)} />
+          <HexField label="Second color hex code" value={prefs.accent2} onCommit={hex => set('accent2', hex)} />
+          {prefs.accent2 ? <button type="button" className="btn ghost small" onClick={() => set('accent2', '')}>Remove second color</button> : null}
+        </div>
+      </fieldset>
+      <Toggle label="Color the whole display with team colors" checked={prefs.teamTheme} onChange={v => set('teamTheme', v)}
+        hint="Header, buttons, links and a light tint on the background. Text stays readable whatever the colors. High contrast keeps its own black, white and yellow." />
       <Radio legend="Clock" name="clock" value={prefs.clock} onChange={v => set('clock', v)}
         options={[{ value: 'auto', label: 'Match device' }, { value: '12h', label: '12-hour' }, { value: '24h', label: '24-hour' }]} />
     </>
@@ -613,13 +626,14 @@ function NexusFields({ prefs, set }: { prefs: PitPrefs; set: TabProps['set'] }) 
   )
 }
 
-function HexField({ value, onCommit }: { value: string; onCommit: (hex: string) => void }) {
+function HexField({ value, onCommit, label = 'Hex code' }: { value: string; onCommit: (hex: string) => void; label?: string }) {
   const id = useId()
   const [draft, setDraft] = useState(value)
   const [error, setError] = useState('')
   useEffect(() => { setDraft(value); setError('') }, [value])
   const commit = () => {
     const hex = parseHex(draft)
+    if (!draft.trim() && !value) return
     if (hex) {
       setError('')
       onCommit(hex)
@@ -630,7 +644,7 @@ function HexField({ value, onCommit }: { value: string; onCommit: (hex: string) 
   const preview = parseHex(draft)
   return (
     <div className="field" style={{ maxWidth: '20rem' }}>
-      <label htmlFor={id}>Hex code</label>
+      <label htmlFor={id}>{label}</label>
       <div className="row" style={{ flexWrap: 'nowrap', alignItems: 'center' }}>
         <span className="swatch" aria-hidden style={{ background: preview ?? 'transparent', flexShrink: 0 }} />
         <input id={id} type="text" inputMode="text" autoComplete="off" spellCheck={false} maxLength={7} value={draft}

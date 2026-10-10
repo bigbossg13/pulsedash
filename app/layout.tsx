@@ -37,6 +37,8 @@ const prefsScript = `
     if (['l', 'xl', 'xxl'].indexOf(p.textSize) >= 0) root.setAttribute('data-text', p.textSize);
     if (p.font === 'readable') root.setAttribute('data-font', 'readable');
     if (p.motion === 'reduce') root.setAttribute('data-motion', 'reduce');
+    var vars = JSON.parse(localStorage.getItem(key.replace(':prefs:', ':theme:')) || '{}');
+    for (var k in vars) if (/^--[a-z0-9-]+$/.test(k) && /^#[0-9a-f]{6}$/.test(vars[k])) root.style.setProperty(k, vars[k]);
   } catch (e) {}
 })();
 `
