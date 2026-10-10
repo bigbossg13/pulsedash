@@ -10,6 +10,7 @@ export default {
     handler ??= createHandler({
       username: env.FTC_EVENTS_USERNAME,
       token: env.FTC_EVENTS_TOKEN,
+      nexusKey: env.NEXUS_API_KEY,
       allowedOrigins: env.ALLOWED_ORIGINS || '*',
     })
     return handler(request)

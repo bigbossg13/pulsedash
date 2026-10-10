@@ -9,6 +9,7 @@ import { fetchEventData, fetchSeasonStats } from './ftcscout'
 import { DEFAULT_PROXY, fetchOfficialData, isUsableProxy } from './ftcevents'
 import { mergeSnapshot } from './merge'
 import { demoData } from './demo'
+import { defaultNexusKey, fetchNexus, nexusBase, type NexusEvent } from './nexus'
 
 export interface PitDataOptions {
   season: number
@@ -17,6 +18,10 @@ export interface PitDataOptions {
   refresh: number
   /** FTC Events proxy override; empty uses the site default. */
   proxy: string
+  /** Personal Nexus API key; without one, Nexus goes through the proxy if there is one. */
+  nexusKey: string
+  /** Nexus event key override. */
+  nexusEvent: string
   demo: boolean
 }
 
@@ -52,9 +57,14 @@ function writeCache(season: number, code: string, value: Cached) {
 
 const idle = (state: SourceStatus['state']): SourceStatus => ({ state, at: null })
 
-export function usePitData({ season, code, refresh, proxy, demo }: PitDataOptions) {
+export function usePitData({ season, code, refresh, proxy, nexusKey, nexusEvent, demo }: PitDataOptions) {
   const proxyUrl = proxy || DEFAULT_PROXY
   const officialEnabled = !demo && isUsableProxy(proxyUrl)
+  const nexusKeyToUse = nexusEvent || defaultNexusKey(season, code)
+  const nexusEnabled = !demo && !!nexusBase(nexusKey, isUsableProxy(proxyUrl) ? proxyUrl : '')
+
+  const [nexus, setNexus] = useState<NexusEvent | null>(null)
+  const [nexusStatus, setNexusStatus] = useState<SourceStatus>(idle(nexusEnabled ? 'loading' : 'off'))
 
   const [scout, setScout] = useState<SourceData | null>(null)
   const [official, setOfficial] = useState<SourceData | null>(null)
@@ -88,6 +98,8 @@ export function usePitData({ season, code, refresh, proxy, demo }: PitDataOption
     setSeasonStats({})
     setRestoredAt(null)
     setSources({ ftcscout: idle(demo ? 'ok' : 'loading'), ftcEvents: idle(officialEnabled ? 'loading' : 'off') })
+    setNexus(null)
+    setNexusStatus(idle(nexusEnabled ? 'loading' : 'off'))
 
     if (demo) {
       const start = Date.now()
@@ -96,6 +108,8 @@ export function usePitData({ season, code, refresh, proxy, demo }: PitDataOption
         setScout(d.scout)
         setOfficial(d.official)
         setSeasonStats(d.seasonStats)
+        setNexus(d.nexus)
+        setNexusStatus({ state: 'ok', at: Date.now() })
         setSources({ ftcscout: { state: 'ok', at: Date.now() }, ftcEvents: { state: 'ok', at: Date.now() } })
         later(tick, 5_000)
       }
@@ -126,9 +140,9 @@ export function usePitData({ season, code, refresh, proxy, demo }: PitDataOption
     let lastEventInfo = 0
     let lastSeasonStats = 0
     let timeZone: string | null = cached?.scout?.event?.timezone ?? null
-    const running = { scout: false, official: false }
-    const pending = { scout: null as ReturnType<typeof setTimeout> | null, official: null as ReturnType<typeof setTimeout> | null }
-    const schedule = (which: 'scout' | 'official', fn: () => void, ms: number) => {
+    const running = { scout: false, official: false, nexus: false }
+    const pending: Record<'scout' | 'official' | 'nexus', ReturnType<typeof setTimeout> | null> = { scout: null, official: null, nexus: null }
+    const schedule = (which: 'scout' | 'official' | 'nexus', fn: () => void, ms: number) => {
       if (pending[which]) {
         clearTimeout(pending[which]!)
         timers.delete(pending[which]!)
@@ -214,9 +228,36 @@ export function usePitData({ season, code, refresh, proxy, demo }: PitDataOption
       }
     }
 
+    // Nexus: live queue calls, estimates and announcements at events that use it.
+    let nexusFailures = 0
+    const nexusTarget = nexusBase(nexusKey, isUsableProxy(proxyUrl) ? proxyUrl : '')
+    const pollNexus = async () => {
+      if (!nexusTarget || running.nexus) return
+      running.nexus = true
+      try {
+        const data = await fetchNexus(nexusTarget, nexusKeyToUse, controller.signal)
+        if (stopped) return
+        nexusFailures = 0
+        setNexus(data)
+        setNexusStatus(data
+          ? { state: 'ok', at: Date.now() }
+          : { state: 'off', at: null, message: `Nexus isn't running ${nexusKeyToUse}` })
+        // Events that don't use Nexus are checked again only occasionally.
+        schedule('nexus', pollNexus, data ? Math.min(refresh, 20) * 1000 : 5 * 60_000)
+      } catch (err) {
+        if (stopped) return
+        nexusFailures++
+        setNexusStatus(s => ({ ...s, state: 'error', message: (err as Error).message }))
+        schedule('nexus', pollNexus, backoff(nexusFailures))
+      } finally {
+        running.nexus = false
+      }
+    }
+
     wake.current = () => {
       void pollScout()
       if (officialEnabled) void pollOfficial()
+      if (nexusTarget) void pollNexus()
     }
     wake.current()
 
@@ -238,14 +279,14 @@ export function usePitData({ season, code, refresh, proxy, demo }: PitDataOption
       document.removeEventListener('visibilitychange', onVisible)
       window.removeEventListener('online', onOnline)
     }
-  }, [season, code, refresh, proxyUrl, officialEnabled, demo, setStatus])
+  }, [season, code, refresh, proxyUrl, officialEnabled, nexusKey, nexusKeyToUse, nexusEnabled, demo, setStatus])
 
   const snapshot: EventSnapshot = useMemo(
-    () => mergeSnapshot(scout, official, seasonStats, sources),
-    [scout, official, seasonStats, sources],
+    () => ({ ...mergeSnapshot(scout, official, seasonStats, sources), nexus }),
+    [scout, official, seasonStats, sources, nexus],
   )
 
   const refreshNow = useCallback(() => wake.current(), [])
 
-  return { snapshot, refreshNow, restoredAt, hasData: !!(scout || official) }
+  return { snapshot, nexusStatus, refreshNow, restoredAt, hasData: !!(scout || official) }
 }

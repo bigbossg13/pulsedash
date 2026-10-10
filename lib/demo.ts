@@ -1,6 +1,7 @@
 // A made-up event that plays out in real time, for trying the display
 // without a live competition (and for off-season testing). Team numbers are
 // in the 90000s, which FIRST hasn't issued.
+import type { NexusEvent } from './nexus'
 import type { AllianceScore, AllianceSelection, EventInfo, Match, MatchTeam, Ranking, SeasonStats, SourceData, TeamInfo, TeamStats } from './types'
 
 export const DEMO_CODE = 'DEMO'
@@ -47,7 +48,7 @@ const SCHEDULE = schedule()
  * shortly before `start` (the moment the demo was opened). The field runs a
  * few minutes behind so the delay estimate has something to show.
  */
-export function demoData(start: number, now: number): { scout: SourceData; official: SourceData; seasonStats: Record<number, SeasonStats> } {
+export function demoData(start: number, now: number): { scout: SourceData; official: SourceData; seasonStats: Record<number, SeasonStats>; nexus: NexusEvent } {
   const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone
   const first = Math.floor((start - 32 * MINUTE) / MINUTE) * MINUTE
   const day = new Date(start).toISOString().slice(0, 10)
@@ -175,9 +176,46 @@ export function demoData(start: number, now: number): { scout: SourceData; offic
   }
 
   const alliances: AllianceSelection[] = []
+
+  // Nexus: the queue runs two deep ahead of the field, like a real event.
+  const f = matches.findIndex(m => !m.played)
+  const onField = f >= 0 && matches[f].actual != null
+  const statusAt = (i: number) => {
+    if (i < f || (i === f && onField)) return 'On field'
+    const ahead = i - f - (onField ? 1 : 0)
+    return ahead === 0 ? 'On deck' : ahead === 1 ? 'Now queuing' : 'Queuing soon'
+  }
+  const delay = 5 * MINUTE
+  const nexus: NexusEvent = {
+    key: 'demo',
+    asOf: now,
+    nowQueuing: f >= 0 ? matches.find((_, i) => statusAt(i) === 'Now queuing')?.longLabel ?? null : null,
+    matches: matches.map((m, i) => ({
+      label: m.longLabel,
+      status: statusAt(i),
+      red: m.teams.filter(t => t.alliance === 'red').map(t => t.team),
+      blue: m.teams.filter(t => t.alliance === 'blue').map(t => t.team),
+      breakAfter: i === 17 ? 'Lunch' : null,
+      times: {
+        scheduledStart: m.scheduled,
+        estimatedQueue: Math.max(now, m.scheduled! + delay - 12 * MINUTE),
+        estimatedOnDeck: Math.max(now, m.scheduled! + delay - 6 * MINUTE),
+        estimatedOnField: Math.max(now, m.scheduled! + delay - 2 * MINUTE),
+        estimatedStart: m.actual ?? Math.max(now, m.scheduled! + delay),
+        actualQueue: statusAt(i) === 'Queuing soon' ? null : m.scheduled! - 8 * MINUTE,
+        actualStart: m.actual,
+      },
+    })),
+    announcements: [
+      { id: 'a1', text: 'Welcome to the PulseDash demo! Lunch is after Qualification 18.', team: null, posted: start - 20 * MINUTE },
+      { id: 'a2', text: 'Robot inspection closes at noon.', team: null, posted: start - 45 * MINUTE },
+    ],
+    partsRequests: [{ id: 'p1', text: 'Looking for a spare 5203 motor encoder cable', team: 90014, posted: start - 10 * MINUTE }],
+  }
   return {
     scout: { event, teams, stats, matches, rankings },
     official: { event, matches, rankings, alliances },
     seasonStats,
+    nexus,
   }
 }

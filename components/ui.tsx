@@ -14,7 +14,8 @@ export interface DisplayCtx {
   /** Ticks every second. */
   now: number
   timing: Timing
-  queue: QueueStatus | null
+  /** `nexusStatus` is set when the queue call comes from FTC Nexus. */
+  queue: (QueueStatus & { nexusStatus: string | null }) | null
   /** The team's matches in schedule order. */
   ours: Match[]
   /** Next match to be played on the field. */

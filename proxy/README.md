@@ -52,5 +52,16 @@ FTC_EVENTS_USERNAME=... FTC_EVENTS_TOKEN=... npm run proxy   # http://localhost:
   `NEXT_PUBLIC_FTC_EVENTS_PROXY=http://localhost:8787` in `.env.local`.
 - For one screen: open the display's **Settings → Data** and paste the URL.
 
+## Optional: FTC Nexus
+
+The proxy can also hold an [FTC Nexus API key](https://ftc.nexus/en/api), so
+nobody has to enter one on each screen. It forwards only
+`/nexus/v1/events`, `/nexus/v1/event/{key}` and its `/alliances` and `/pits`:
+
+```sh
+npx wrangler secret put NEXUS_API_KEY        # Cloudflare
+NEXUS_API_KEY=... npm run proxy              # Node
+```
+
 Check it with `curl https://<your-proxy>/health`, which reports whether the
 credentials are configured.

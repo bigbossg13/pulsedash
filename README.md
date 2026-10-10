@@ -27,6 +27,7 @@ Each one is a widget you can move, add or remove:
 | Alliances | Playoff alliances after selection |
 | Pre-match checklist | Your own list, reset for every match |
 | Welcome | A message and logo for visitors to your pit |
+| Announcements | Event announcements and parts requests from FTC Nexus |
 
 The header always shows the next match on the field, how far the event is
 running behind, and the time at the event.
@@ -37,11 +38,15 @@ running behind, and the time at the event.
 | --- | --- |
 | [FTCScout API](https://ftcscout.org/api) | Schedule, results, rankings, event and season OPR, team names. Called directly from the browser. |
 | [FTC Events API](https://ftc-events.firstinspires.org/services/API) (official) | Schedule, results, official rankings and alliance selections, within seconds of being posted. Needs a key, so it goes through the small proxy in [`proxy/`](proxy/README.md). Optional. |
+| [FTC Nexus API](https://ftc.nexus/en/api) | At events that run queuing on Nexus: live queue calls ("Now queuing", "On deck", "On field"), the queue crew's time estimates, announcements and parts requests. Optional: add your own key under Settings → Data (it stays on that device), or put one on the proxy for everyone. |
 
 When both are available the official schedule and rankings win if they're at
 least as far along as FTCScout (which syncs about once a minute); OPR always
 comes from FTCScout. Match delays are estimated from the actual start times of
-recent matches; breaks in the schedule absorb the delay. The last data is
+recent matches; breaks in the schedule absorb the delay. When Nexus is
+queuing the event, its calls and estimates take over: it's the queue crew's
+own system. The Nexus event key defaults to the season plus the event code
+(e.g. `2026usxxq1`) and can be changed in Settings. The last data is
 cached on the device, so a reload on flaky venue Wi-Fi still shows something.
 
 ## Customizing for your team

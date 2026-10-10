@@ -72,3 +72,12 @@ test('durations and seasons', () => {
   assert.equal(currentSeason(new Date(Date.UTC(2026, 9, 10))), 2026)
   assert.equal(currentSeason(new Date(Date.UTC(2027, 2, 1))), 2026)
 })
+
+test('the Nexus API key never leaves the device in a share link', () => {
+  const prefs = sanitizePrefs({ ...DEFAULT_PREFS, nexusKey: 'secret-key', nexusEvent: '2026USXXQ1' }, 7)
+  assert.equal(prefs.nexusEvent, '2026usxxq1')
+  const back = decodePrefs(encodePrefs(prefs, 7), 7)!
+  assert.equal(back.nexusKey, '')
+  assert.equal(back.nexusEvent, '2026usxxq1')
+  assert.equal(sanitizePrefs({ nexusKey: 'bad key<script>' }, 7).nexusKey, '')
+})

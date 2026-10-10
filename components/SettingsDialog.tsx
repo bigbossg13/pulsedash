@@ -502,6 +502,7 @@ function DataTab({ prefs, set, ftcEvents }: TabProps) {
           The official API needs a key, so it’s reached through a small proxy you can host for free. See proxy/README.md in the PulseDash repository.
         </p>
       </div>
+      <NexusFields prefs={prefs} set={set} />
       <Toggle label="Scroll long lists automatically" checked={prefs.autoScroll} onChange={v => set('autoScroll', v)}
         hint="Rankings and the field queue scroll slowly so a mounted screen shows every row. Each list has a pause button." />
       <Toggle label="Keep the screen awake" checked={prefs.keepAwake} onChange={v => set('keepAwake', v)}
@@ -530,7 +531,8 @@ function ShareTab({ prefs, onChange, team }: SettingsProps) {
     }
   }
   const download = () => {
-    const blob = new Blob([JSON.stringify({ app: 'pulsedash', team, prefs }, null, 2)], { type: 'application/json' })
+    const { nexusKey: _key, ...shareable } = prefs // eslint-disable-line @typescript-eslint/no-unused-vars
+    const blob = new Blob([JSON.stringify({ app: 'pulsedash', team, prefs: shareable }, null, 2)], { type: 'application/json' })
     const a = document.createElement('a')
     a.href = URL.createObjectURL(blob)
     a.download = `pulsedash-${team ?? 'event'}.json`
@@ -542,7 +544,7 @@ function ShareTab({ prefs, onChange, team }: SettingsProps) {
     if (!file) return
     try {
       const json = JSON.parse(await file.text())
-      onChange(sanitizePrefs(json.prefs ?? json, team))
+      onChange(sanitizePrefs({ ...(json.prefs ?? json), nexusKey: prefs.nexusKey }, team))
       setCopied('Settings imported.')
     } catch {
       setImportError('That file isn’t a PulseDash settings file.')
@@ -570,7 +572,7 @@ function ShareTab({ prefs, onChange, team }: SettingsProps) {
       <p className="toast" role="status">{copied}</p>
       <div>
         <button type="button" className="btn ghost" onClick={() => {
-          if (window.confirm('Reset every setting for this team to the defaults?')) onChange(defaultPrefs(team))
+          if (window.confirm('Reset every setting for this team to the defaults?')) onChange({ ...defaultPrefs(team), nexusKey: prefs.nexusKey })
         }}>
           Reset to defaults
         </button>
@@ -579,3 +581,33 @@ function ShareTab({ prefs, onChange, team }: SettingsProps) {
   )
 }
 
+
+function NexusFields({ prefs, set }: { prefs: PitPrefs; set: TabProps['set'] }) {
+  const ids = { key: useId(), event: useId() }
+  const [key, setKey] = useState(prefs.nexusKey)
+  const [event, setEvent] = useState(prefs.nexusEvent)
+  return (
+    <fieldset>
+      <legend>FTC Nexus (live queuing)</legend>
+      <p className="hint">
+        At events that use <a href="https://ftc.nexus/" target="_blank" rel="noreferrer">FTC Nexus</a>, the display takes queue calls,
+        time estimates, announcements and parts requests straight from the queue crew. Get a free API key at{' '}
+        <a href="https://ftc.nexus/en/api" target="_blank" rel="noreferrer">ftc.nexus/en/api</a>.
+      </p>
+      <div className="grid-2">
+        <div className="field">
+          <label htmlFor={ids.key}>Nexus API key</label>
+          <input id={ids.key} type="password" autoComplete="off" spellCheck={false} value={key}
+            onChange={e => setKey(e.target.value)} onBlur={() => set('nexusKey', key.trim())} aria-describedby={`${ids.key}-h`} />
+          <p className="hint" id={`${ids.key}-h`}>Saved on this device only. Never included in share links or settings files you share.</p>
+        </div>
+        <div className="field">
+          <label htmlFor={ids.event}>Nexus event key</label>
+          <input id={ids.event} type="text" autoComplete="off" spellCheck={false} value={event} placeholder="Automatic"
+            onChange={e => setEvent(e.target.value)} onBlur={() => set('nexusEvent', event.trim())} aria-describedby={`${ids.event}-h`} />
+          <p className="hint" id={`${ids.event}-h`}>Leave empty to use season + event code (e.g. 2026usxxq1). Set it only if Nexus uses a different key.</p>
+        </div>
+      </div>
+    </fieldset>
+  )
+}

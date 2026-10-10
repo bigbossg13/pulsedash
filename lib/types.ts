@@ -149,6 +149,8 @@ export interface SourceData {
 }
 
 export interface EventSnapshot {
+  /** Live queuing from FTC Nexus, when the event uses it. */
+  nexus?: import('./nexus').NexusEvent | null
   event: EventInfo | null
   teams: Record<number, TeamInfo>
   matches: Match[]
