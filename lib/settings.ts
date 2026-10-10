@@ -5,7 +5,7 @@
 
 export const WIDGET_IDS = [
   'next-match', 'team-status', 'match-preview', 'our-schedule', 'last-result',
-  'rankings', 'upcoming', 'alliances', 'checklist', 'message',
+  'rankings', 'upcoming', 'alliances', 'checklist', 'message', 'announcements',
 ] as const
 export type WidgetId = (typeof WIDGET_IDS)[number]
 
@@ -41,6 +41,10 @@ export interface PitPrefs {
   refresh: number
   /** FTC Events proxy URL; empty uses the site default. */
   proxy: string
+  /** Personal FTC Nexus API key. Stays on this device: never in share links. */
+  nexusKey: string
+  /** Nexus event key when it isn't season + event code. */
+  nexusEvent: string
   opr: 'np' | 'total'
   autoScroll: boolean
   keepAwake: boolean
@@ -65,7 +69,7 @@ export const LAYOUT_PRESETS: LayoutPreset[] = [
     id: 'focus',
     name: 'Match focus',
     description: 'Big next-match card with the pre-match checklist. Good for the drive team.',
-    columns: [['next-match', 'checklist'], ['our-schedule', 'last-result']],
+    columns: [['next-match', 'checklist'], ['our-schedule', 'announcements']],
   },
   {
     id: 'scouting',
@@ -106,6 +110,8 @@ export const DEFAULT_PREFS: PitPrefs = {
   adjustForDelay: true,
   refresh: 30,
   proxy: '',
+  nexusKey: '',
+  nexusEvent: '',
   opr: 'np',
   autoScroll: true,
   keepAwake: true,
@@ -189,6 +195,8 @@ export function sanitizePrefs(input: unknown, team: number | null = null): PitPr
     adjustForDelay: bool(p.adjustForDelay, d.adjustForDelay),
     refresh: clampInt(p.refresh, 15, 300, d.refresh),
     proxy,
+    nexusKey: typeof p.nexusKey === 'string' && /^[A-Za-z0-9._-]{1,128}$/.test(p.nexusKey.trim()) ? p.nexusKey.trim() : '',
+    nexusEvent: typeof p.nexusEvent === 'string' && /^[A-Za-z0-9_-]{1,40}$/.test(p.nexusEvent.trim()) ? p.nexusEvent.trim().toLowerCase() : '',
     opr: oneOf(p.opr, ['np', 'total'], d.opr),
     autoScroll: bool(p.autoScroll, d.autoScroll),
     keepAwake: bool(p.keepAwake, d.keepAwake),
@@ -232,12 +240,13 @@ function fromBase64Url(s: string): string {
   return new TextDecoder().decode(Uint8Array.from(bin, c => c.charCodeAt(0)))
 }
 
-/** Only values that differ from the defaults, without uploaded logos (too big for a link). */
+/** Only values that differ from the defaults, without uploaded logos (too big for a link) or API keys. */
 export function encodePrefs(prefs: PitPrefs, team: number | null): string {
   const d = defaultPrefs(team)
   const diff: Record<string, unknown> = {}
   for (const [k, v] of Object.entries(prefs)) {
     if (k === 'logo' && typeof v === 'string' && v.startsWith('data:')) continue
+    if (k === 'nexusKey') continue
     if (JSON.stringify(v) !== JSON.stringify(d[k as keyof PitPrefs])) diff[k] = v
   }
   return toBase64Url(JSON.stringify(diff))

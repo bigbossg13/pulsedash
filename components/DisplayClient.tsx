@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { usePitData } from '@/lib/usePitData'
+import { applyNexus, nexusDelay, nexusOnField, type NexusEvent } from '@/lib/nexus'
 import { DEMO_CODE, DEMO_TEAM } from '@/lib/demo'
 import { estimateTiming, nextOnField, oprRanks, ordinal, queueStatus, resultFor, teamMatches } from '@/lib/derive'
 import { BRAND_ORANGE, decodePrefs, loadPrefs, readableInk, savePrefs, type PitPrefs } from '@/lib/settings'
@@ -75,7 +76,7 @@ function Display({ season, code, team, demo }: { season: number; code: string; t
     if (!m) return
     const shared = decodePrefs(m[1], team)
     if (shared) {
-      updatePrefs({ ...shared, logo: shared.logo || prefs.logo })
+      updatePrefs({ ...shared, logo: shared.logo || prefs.logo, nexusKey: prefs.nexusKey })
       setNotice('Settings from the shared link were applied and saved on this device.')
     }
     history.replaceState(null, '', window.location.pathname + window.location.search)
@@ -96,7 +97,9 @@ function Display({ season, code, team, demo }: { season: number; code: string; t
     root.style.setProperty('--team-ink', readableInk(accent))
   }, [prefs.theme, prefs.textSize, prefs.font, prefs.motion, prefs.accent])
 
-  const { snapshot, refreshNow, restoredAt, hasData } = usePitData({ season, code, refresh: prefs.refresh, proxy: prefs.proxy, demo })
+  const { snapshot, nexusStatus, refreshNow, restoredAt, hasData } = usePitData({
+    season, code, refresh: prefs.refresh, proxy: prefs.proxy, nexusKey: prefs.nexusKey, nexusEvent: prefs.nexusEvent, demo,
+  })
   const now = useNow(1000)
   const systemReduced = useMedia('(prefers-reduced-motion: reduce)')
   const reducedMotion = systemReduced || prefs.motion === 'reduce'
@@ -107,7 +110,7 @@ function Display({ season, code, team, demo }: { season: number; code: string; t
   const ours = useMemo(() => (team != null ? teamMatches(snapshot.matches, team) : []), [snapshot.matches, team])
   const ranks = useMemo(() => oprRanks(snapshot.stats, prefs.opr), [snapshot.stats, prefs.opr])
   const queue = team != null
-    ? queueStatus(snapshot.matches, team, timing, now, { leadMinutes: prefs.queueMinutes, leadMatches: prefs.queueMatches, adjustForDelay: prefs.adjustForDelay })
+    ? applyNexus(queueStatus(snapshot.matches, team, timing, now, { leadMinutes: prefs.queueMinutes, leadMatches: prefs.queueMatches, adjustForDelay: prefs.adjustForDelay }), snapshot.nexus ?? null)
     : null
   const onField = useMemo(() => nextOnField(snapshot.matches), [snapshot.matches])
   const timeZone = snapshot.event?.timezone ?? null
@@ -116,6 +119,7 @@ function Display({ season, code, team, demo }: { season: number; code: string; t
   const ctx: DisplayCtx = { snapshot, team, prefs, now, timing, queue, ours, onField, timeZone, oprRanks: ranks, watch, reducedMotion }
 
   const announcement = useAnnouncements(snapshot, team, queue?.kind ?? null, queue?.match?.longLabel ?? null, hasData)
+  const nexusNews = useNexusNews(snapshot.nexus ?? null)
   useWakeLock(prefs.keepAwake)
   const fullscreen = useFullscreen()
   const cursorHidden = useIdleCursor(prefs.hideCursor && !settingsOpen)
@@ -125,6 +129,7 @@ function Display({ season, code, team, demo }: { season: number; code: string; t
   const eventName = snapshot.event?.name ?? code
   const place = [snapshot.event?.venue, snapshot.event?.city, snapshot.event?.state].filter(Boolean).join(', ')
   const field = fieldStatus(snapshot, timing, now, timeZone, prefs)
+  const nx = snapshot.nexus?.nowQueuing ? nexusField(snapshot.nexus) : null
   const columns = prefs.columns.length
   const gridTemplateColumns = columns === 3 ? '1.15fr 1fr 1fr' : columns === 2 ? '1.1fr 1fr' : '1fr'
 
@@ -163,9 +168,9 @@ function Display({ season, code, team, demo }: { season: number; code: string; t
           </div>
         </div>
         <div className="d-field" role="group" aria-label="Field status">
-          <span className="k">{field.k}</span>
-          <span className="v">{field.v}</span>
-          {field.s ? <span className="s">{field.s}</span> : null}
+          <span className="k">{nx ? 'On field · Nexus' : field.k}</span>
+          <span className="v">{nx ? nx.onField : field.v}</span>
+          {nx ? <span className="s">Queuing {nx.queuing}{nx.delay ? ` · ${nx.delay}` : ''}</span> : field.s ? <span className="s">{field.s}</span> : null}
         </div>
         <time className="d-clock" dateTime={new Date(now).toISOString()} aria-label={`Time at the event: ${formatClock(now, timeZone, prefs.clock)}`}>
           {formatClock(now, timeZone, prefs.clock)}
@@ -205,12 +210,14 @@ function Display({ season, code, team, demo }: { season: number; code: string; t
         <div className="sources" aria-label="Data sources">
           <SourceLabel name="FTCScout" status={snapshot.sources.ftcscout} now={now} />
           <SourceLabel name="FTC Events" status={snapshot.sources.ftcEvents} now={now} />
+          <SourceLabel name="Nexus" status={nexusStatus} now={now} />
           {snapshot.provenance.matches ? <span>Schedule from {snapshot.provenance.matches === 'ftcEvents' ? 'FTC Events' : 'FTCScout'}</span> : null}
         </div>
         <span>{code} · {seasonLabel(season)} season</span>
       </footer>
 
       <div className="sr-only" aria-live="polite" aria-atomic="true">{announcement}</div>
+      <div className="sr-only" aria-live="polite" aria-atomic="true">{nexusNews}</div>
 
       <SettingsDialog
         open={settingsOpen}
@@ -236,6 +243,23 @@ function SourceLabel({ name, status, now }: { name: string; status: SourceStatus
     : status.state === 'error' ? (status.at ? `problem, last update ${formatDuration(now - status.at)} ago` : 'unreachable')
     : status.at ? `updated ${formatDuration(now - status.at)} ago` : 'ok'
   return <span className={`src ${status.state}`} title={status.message}>{name}: {text}</span>
+}
+
+/** "Qualification 12" → "Q12", "Playoff 3" → "M3", "Final 2" → "F2". */
+export function shortNexusLabel(label: string): string {
+  return label
+    .replace(/^Qualification\s+/i, 'Q').replace(/^Practice\s+/i, 'P')
+    .replace(/^Playoff\s+/i, 'M').replace(/^Final\s+/i, 'F').replace(/\s+Replay$/i, ' replay')
+}
+
+function nexusField(nexus: NexusEvent) {
+  const onField = nexusOnField(nexus)
+  const d = nexusDelay(nexus)
+  return {
+    onField: onField ? shortNexusLabel(onField.label) : '–',
+    queuing: shortNexusLabel(nexus.nowQueuing ?? ''),
+    delay: d == null || Math.abs(d) < 2 * 60_000 ? (d == null ? '' : 'on schedule') : d > 0 ? `${formatDuration(d)} behind` : `${formatDuration(d)} ahead`,
+  }
 }
 
 function fieldStatus(snapshot: EventSnapshot, timing: Timing, now: number, tz: string | null, prefs: PitPrefs) {
@@ -375,4 +399,22 @@ function useIdleCursor(enabled: boolean) {
     }
   }, [enabled])
   return hidden
+}
+
+/** Reads out announcements that arrive after the display opened. */
+function useNexusNews(nexus: NexusEvent | null) {
+  const [text, setText] = useState('')
+  const seen = useRef<Set<string> | null>(null)
+  useEffect(() => {
+    if (!nexus) return
+    const ids = nexus.announcements.map(a => a.id)
+    if (!seen.current) {
+      seen.current = new Set(ids)
+      return
+    }
+    const fresh = nexus.announcements.filter(a => !seen.current!.has(a.id))
+    fresh.forEach(a => seen.current!.add(a.id))
+    if (fresh.length) setText(`Announcement: ${fresh.map(a => a.text).join(' ')}`)
+  }, [nexus])
+  return text
 }

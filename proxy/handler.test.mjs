@@ -68,5 +68,17 @@ test('reports upstream problems without leaking details', async () => {
   const noKey = await createHandler({})(req('/v2.0/2026/events'))
   assert.equal(noKey.status, 500)
   const health = await createHandler({})(req('/health'))
-  assert.deepEqual(await health.json(), { ok: true, service: 'pulsedash-ftc-events-proxy', configured: false })
+  assert.deepEqual(await health.json(), { ok: true, service: 'pulsedash-ftc-events-proxy', configured: false, nexus: false })
+})
+
+test('forwards allow-listed Nexus paths with the Nexus key', async () => {
+  const f = fakeFetch(() => ok({ nowQueuing: null, matches: [] }))
+  const handle = createHandler({ nexusKey: 'nx-key', fetchImpl: f.impl })
+  assert.equal((await handle(req('/nexus/v1/event/2026usxxq1'))).status, 200)
+  assert.equal(f.calls[0].url, 'https://ftc.nexus/api/v1/event/2026usxxq1')
+  assert.equal(f.calls[0].init.headers['Nexus-Api-Key'], 'nx-key')
+  await handle(req('/nexus/v1/event/2026usxxq1/alliances'))
+  assert.equal(f.calls[1].url, 'https://ftc.nexus/api/v1/event/2026usxxq1/alliances')
+  assert.equal((await handle(req('/nexus/v1/event/x/secrets'))).status, 404)
+  assert.equal((await createHandler({ fetchImpl: f.impl })(req('/nexus/v1/events'))).status, 500)
 })

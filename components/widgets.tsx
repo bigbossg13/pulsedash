@@ -31,6 +31,7 @@ export const WIDGETS: Record<WidgetId, WidgetMeta> = {
   upcoming: { id: 'upcoming', title: 'Coming up on the field', description: 'The next matches at the event and their estimated start.', needsTeam: false, grow: 1.2, scrolls: true },
   alliances: { id: 'alliances', title: 'Alliances', description: 'Playoff alliances once selection is done.', needsTeam: false, grow: 0.8, scrolls: true },
   checklist: { id: 'checklist', title: 'Pre-match checklist', description: 'Your own checklist. It resets for every match.', needsTeam: false, grow: 1, scrolls: true },
+  announcements: { id: 'announcements', title: 'Announcements', description: 'Event announcements and parts requests from FTC Nexus.', needsTeam: false, grow: 1, scrolls: true },
   message: { id: 'message', title: 'Welcome', description: 'Your team message and logo for visitors.', needsTeam: false, grow: 1 },
 }
 
@@ -77,6 +78,7 @@ function WidgetContent({ id, ctx }: { id: WidgetId; ctx: DisplayCtx }) {
     case 'alliances': return <Alliances ctx={ctx} />
     case 'checklist': return <Checklist ctx={ctx} />
     case 'message': return <Message ctx={ctx} />
+    case 'announcements': return <Announcements ctx={ctx} />
   }
 }
 
@@ -187,7 +189,7 @@ function NextMatch({ ctx }: { ctx: DisplayCtx }) {
       icon = <FieldIcon className="q-icon" />
       break
     case 'now':
-      main = 'Queue now'
+      main = q.nexusStatus === 'On deck' ? 'On deck' : 'Queue now'
       sub = est != null ? `${m.label} starts ${formatRelative(est, ctx.now)}, about ${clock(est)}` : `${m.label} is coming up`
       icon = <BellIcon className="q-icon" />
       break
@@ -200,6 +202,7 @@ function NextMatch({ ctx }: { ctx: DisplayCtx }) {
       main = q.matchesAway === 1 ? '1 match away' : `${q.matchesAway ?? '?'} matches away`
       sub = est != null ? `Starts about ${clock(est)} (${formatRelative(est, ctx.now)})` : 'Start time not scheduled'
   }
+  if (q.nexusStatus) sub = `${sub} · called by Nexus`
   const delayed = m.scheduled != null && est != null && Math.abs(est - m.scheduled) >= 60_000
   return (
     <div>
@@ -624,6 +627,50 @@ function Message({ ctx }: { ctx: DisplayCtx }) {
         <img src={logo} alt={`${ctx.prefs.displayName.trim() || (ctx.team != null ? teamName(ctx, ctx.team) : '') || 'Team'} logo`} />
       ) : null}
       {message ? <p>{message}</p> : null}
+    </div>
+  )
+}
+
+// ── Announcements (FTC Nexus) ────────────────────────────────────────────────
+
+function Announcements({ ctx }: { ctx: DisplayCtx }) {
+  const nexus = ctx.snapshot.nexus
+  if (!nexus) {
+    return (
+      <Empty title="No Nexus feed">
+        <span>Announcements and parts requests show here at events that use FTC Nexus. Add a Nexus API key in Settings → Data.</span>
+      </Empty>
+    )
+  }
+  const time = (t: number | null) => (t == null ? '' : formatClock(t, ctx.timeZone, ctx.prefs.clock))
+  const posts = [...nexus.announcements].sort((a, b) => (b.posted ?? 0) - (a.posted ?? 0))
+  const parts = [...nexus.partsRequests].sort((a, b) => (b.posted ?? 0) - (a.posted ?? 0))
+  if (!posts.length && !parts.length) return <Empty title="Nothing posted yet" />
+  return (
+    <div className="posts">
+      {posts.length ? (
+        <ul className="post-list" aria-label="Announcements">
+          {posts.map(p => (
+            <li key={p.id}>
+              <span className="post-time num">{time(p.posted)}</span>
+              <span>{p.text}</span>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+      {parts.length ? (
+        <>
+          <h3 className="post-head">Parts requests</h3>
+          <ul className="post-list" aria-label="Parts requests">
+            {parts.map(p => (
+              <li key={p.id} className={p.team != null && ctx.watch.has(p.team) ? 'watch' : ''}>
+                <span className="post-time num">{time(p.posted)}</span>
+                <span>{p.team != null ? <strong className="num">{p.team} </strong> : null}{p.text}</span>
+              </li>
+            ))}
+          </ul>
+        </>
+      ) : null}
     </div>
   )
 }

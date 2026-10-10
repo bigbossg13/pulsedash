@@ -8,6 +8,7 @@ const port = Number(process.env.PORT ?? 8787)
 const handler = createHandler({
   username: process.env.FTC_EVENTS_USERNAME,
   token: process.env.FTC_EVENTS_TOKEN,
+  nexusKey: process.env.NEXUS_API_KEY,
   allowedOrigins: process.env.ALLOWED_ORIGINS || '*',
 })
 
