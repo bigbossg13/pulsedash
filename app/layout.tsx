@@ -8,9 +8,9 @@ const body = IBM_Plex_Sans({ subsets: ['latin'], weight: ['400', '500', '600', '
 const mono = IBM_Plex_Mono({ subsets: ['latin'], weight: ['500', '700'], variable: '--font-mono' })
 const readable = Atkinson_Hyperlegible({ subsets: ['latin'], weight: ['400', '700'], variable: '--font-readable' })
 
-// PulsePoint's pulse mark on the brand orange.
+// PulsePoint's bolt mark in black on a white tile.
 const ICON =
-  "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 36 36' fill='none'%3E%3Ccircle cx='18' cy='18' r='16' fill='%23FF9B25' stroke='%2315171C' stroke-width='2'/%3E%3Cpath d='M6 19h6l3-7 5 13 3-6h7' stroke='%2315171C' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"
+  "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 36 36' fill='none'%3E%3Crect width='36' height='36' rx='8' fill='%23fff'/%3E%3Cpath d='M24.5 6.74A13 13 0 1 1 11.5 6.74' stroke='%2315171C' stroke-width='2.6' stroke-linecap='round'/%3E%3Cpath d='M20.5 3 11 19h6.5l-2 11.5L25 14.5h-6.5z' fill='%2315171C'/%3E%3C/svg%3E"
 
 export const metadata: Metadata = {
   title: { default: 'PulseDash: FTC pit display', template: '%s · PulseDash' },
