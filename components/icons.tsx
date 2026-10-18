@@ -14,12 +14,12 @@ const base = (size = 20) => ({
   focusable: false,
 })
 
-/** PulsePoint's pulse mark, shared across the suite. */
+/** PulsePoint's bolt mark (power ring + lightning bolt), shared across the suite. */
 export function PulseLogo({ size = 32, className }: P) {
   return (
     <svg className={`logo-mark ${className ?? ''}`} width={size} height={size} viewBox="0 0 36 36" fill="none" aria-hidden focusable={false}>
-      <circle cx="18" cy="18" r="17" stroke="currentColor" strokeWidth="2" />
-      <path d="M6 19h6l3-7 5 13 3-6h7" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M24.5 6.74A13 13 0 1 1 11.5 6.74" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" />
+      <path d="M20.5 3 11 19h6.5l-2 11.5L25 14.5h-6.5z" fill="currentColor" />
     </svg>
   )
 }
