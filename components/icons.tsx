@@ -18,8 +18,8 @@ const base = (size = 20) => ({
 export function PulseLogo({ size = 32, className }: P) {
   return (
     <svg className={`logo-mark ${className ?? ''}`} width={size} height={size} viewBox="0 0 36 36" fill="none" aria-hidden focusable={false}>
-      <path d="M24.5 6.74A13 13 0 1 1 11.5 6.74" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" />
-      <path d="M20.5 3 11 19h6.5l-2 11.5L25 14.5h-6.5z" fill="currentColor" />
+      <path d="M25.8 4.49A15.6 15.6 0 1 1 10.2 4.49" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" />
+      <path d="M21 0 9.6 19.2h7.8L15 33l11.4-19.2h-7.8z" fill="currentColor" />
     </svg>
   )
 }
