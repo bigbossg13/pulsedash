@@ -28,13 +28,6 @@ export default function SetupPage() {
             <li key={f}><CheckIcon size={18} />{f}</li>
           ))}
         </ul>
-        <div className="suite">
-          <h2>Also from Pulse</h2>
-          <a href="https://bigbossg13.github.io/pulsepoint/">PulsePoint</a>
-          <span>Every FTC team and event on one map.</span>
-          <a href="https://bigbossg13.github.io/PulsePit/">PulsePit</a>
-          <span>FRC &amp; FTC pit and build resources.</span>
-        </div>
         <p className="credits">
           Data from <a href="https://ftcscout.org">FTCScout</a> and the{' '}
           <a href="https://ftc-events.firstinspires.org/services/API">FTC Events API</a>. Not affiliated with <i>FIRST</i>.
